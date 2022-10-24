@@ -33,43 +33,34 @@ func parse(s string) (Interval, error) {
 			t = t[1:]
 		}
 
-		// hh:mm:ss[.uuuuuu]
-		if t[2] != ':' || t[5] != ':' || len(t) < 8 {
-			return ival, ParseErr{s, nil}
-		}
-		if len(t) > 8 && (t[8] != '.' || len(t) == 9) {
+		parts := strings.FieldsFunc(t, func(r rune) bool { return r == ':' || r == '.' })
+
+		switch len(parts) {
+		case 3 | 4:
+		default:
 			return ival, ParseErr{s, nil}
 		}
 
-		hrs, err := strconv.Atoi(t[:2])
+		hrs, err := strconv.Atoi(parts[0])
 		if err != nil {
 			return ival, ParseErr{s, err}
 		}
 		if negTime {
 			hrs = -hrs
 		}
-		t = t[3:]
-
-		mins, err := strconv.Atoi(t[:2])
+		mins, err := strconv.Atoi(parts[1])
 		if err != nil {
 			return ival, ParseErr{s, err}
 		}
-		t = t[3:]
-
-		secs, err := strconv.Atoi(t[:2])
+		secs, err := strconv.Atoi(parts[2])
 		if err != nil {
 			return ival, ParseErr{s, err}
-		}
-		t = t[2:]
-
-		if len(t) > 0 {
-			t = t[1:]
 		}
 
 		var us int
 
-		if t != "" {
-			t += strings.Repeat("0", 6-len(t))
+		if len(parts) > 3 {
+			parts[3] += strings.Repeat("0", 6-len(t))
 			us, err = strconv.Atoi(t)
 			if err != nil {
 				return ival, ParseErr{s, err}
