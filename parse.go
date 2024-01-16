@@ -13,7 +13,7 @@ type ParseErr struct {
 	Cause  error
 }
 
-func parse(s string) (Interval, error) {
+func Parse(s string) (Interval, error) {
 	chunks := strings.Split(s, " ")
 
 	ival := Interval{}
