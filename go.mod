@@ -1,4 +1,4 @@
-module github.com/deepmarker/pqinterval
+module github.com/ImVexed/pqinterval
 
 go 1.12
 
