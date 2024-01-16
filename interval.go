@@ -89,7 +89,7 @@ func (ival *Interval) Scan(src interface{}) error {
 		)
 	}
 
-	result, err := parse(s)
+	result, err := Parse(s)
 	if err != nil {
 		return err
 	}
