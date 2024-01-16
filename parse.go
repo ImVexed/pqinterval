@@ -19,92 +19,67 @@ func Parse(s string) (Interval, error) {
 	ival := Interval{}
 	var negTime bool
 
-	// the space delimited sections of a postgres-formatted interval
-	// come in pairs until the time portion: "3 years 2 days 04:15:47"
 	if len(chunks)%2 == 1 {
+		// Parse the time component
 		t := chunks[len(chunks)-1]
 		chunks = chunks[:len(chunks)-1]
 
-		switch t[0] {
-		case '-':
+		if t[0] == '-' {
 			negTime = true
 			t = t[1:]
-		case '+':
+		} else if t[0] == '+' {
 			t = t[1:]
 		}
 
-		parts := strings.FieldsFunc(t, func(r rune) bool { return r == ':' || r == '.' })
-
-		switch len(parts) {
-		case 3 | 4:
-		default:
-			return ival, ParseErr{s, nil}
+		parts := strings.Split(t, ":")
+		if len(parts) < 2 || len(parts) > 3 {
+			return ival, fmt.Errorf("invalid time format")
 		}
 
 		hrs, err := strconv.Atoi(parts[0])
 		if err != nil {
-			return ival, ParseErr{s, err}
+			return ival, err
 		}
 		if negTime {
 			hrs = -hrs
 		}
 		mins, err := strconv.Atoi(parts[1])
 		if err != nil {
-			return ival, ParseErr{s, err}
+			return ival, err
 		}
-		secs, err := strconv.Atoi(parts[2])
-		if err != nil {
-			return ival, ParseErr{s, err}
-		}
-
-		var us int
-
-		if len(parts) > 3 {
-			parts[3] += strings.Repeat("0", 6-len(t))
-			us, err = strconv.Atoi(t)
+		var secs int
+		if len(parts) > 2 {
+			secs, err = strconv.Atoi(parts[2])
 			if err != nil {
-				return ival, ParseErr{s, err}
+				return ival, err
 			}
-
 		}
-
-		us += secs*usPerSec + mins*usPerMin
 
 		ival.hrs = int32(hrs)
-		ival.us = uint32(us)
+		ival.us = uint32(mins*usPerMin + secs*usPerSec)
 	}
 
 	for len(chunks) > 0 {
-		t := chunks[0]
+		quantity, err := strconv.Atoi(chunks[0])
+		if err != nil {
+			return Interval{}, err
+		}
 		unit := chunks[1]
 		chunks = chunks[2:]
 
-		n, err := strconv.Atoi(t)
-		if err != nil {
-			return Interval{}, ParseErr{s, err}
-		}
-
 		switch unit {
 		case "year", "years":
-			if n < 0 {
-				n *= -1
-				n |= yrSignBit
+			ival.yrs = uint32(quantity)
+			if negTime {
+				ival.yrs |= yrSignBit
 			}
-			ival.yrs = uint32(n)
-
 		case "mon", "mons":
-			ival.hrs += int32(24 * daysPerMon * n)
-
+			ival.hrs += int32(24 * daysPerMon * quantity)
 		case "day", "days":
-			ival.hrs += int32(24 * n)
-
+			ival.hrs += int32(24 * quantity)
 		default:
-			return Interval{}, ParseErr{s, nil}
+			return Interval{}, fmt.Errorf("invalid unit: %s", unit)
 		}
-	}
-
-	if negTime {
-		ival.yrs |= usSignBit
 	}
 
 	return ival, nil
